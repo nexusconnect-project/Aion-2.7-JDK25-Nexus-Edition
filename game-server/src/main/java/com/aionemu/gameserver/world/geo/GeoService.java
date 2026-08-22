@@ -16,14 +16,19 @@
  */
 package com.aionemu.gameserver.world.geo;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aionemu.gameserver.geoEngine.math.Vector3f;
 
 import com.aionemu.gameserver.configs.main.GeoDataConfig;
+import com.aionemu.gameserver.geoEngine.models.GeoMap;
+import com.aionemu.gameserver.geoEngine.pathfinding.PathfindingService;
 import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.VisibleObject;
+import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.utils.MathUtil;
 
 /**
@@ -48,6 +53,28 @@ public class GeoService {
 		}
 		log.info("Configured Geo type: " + getConfiguredGeoType());
 		geoData.loadGeoMaps();
+		if (GeoDataConfig.GEO_PATHFINDING_ENABLE) {
+			warmUpPathfinding(geoData.getLoadedMaps());
+		}
+	}
+
+	/**
+	 * Pre-builds navigation grids on a daemon thread so the game thread never stalls on a
+	 * multi-second grid build when a path is requested for the first time.
+	 */
+	private void warmUpPathfinding(final List<GeoMap> maps) {
+		if (maps == null || maps.isEmpty()) {
+			return;
+		}
+		Thread thread = new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				PathfindingService.getInstance().warmUp(maps);
+			}
+		}, "PathfindingGridWarmup");
+		thread.setDaemon(true);
+		thread.start();
 	}
 
 	public void setDoorState(int worldId, int instanceId, String name, boolean state){
@@ -123,6 +150,35 @@ public class GeoService {
 	public boolean canSee(int worldId, float x, float y, float z, float x1, float y1, float z1, float limit, int instanceId){
 		return geoData.getMap(worldId).canSee(x, y, z, x1, y1, z1, limit, instanceId);
 	}
+
+	/**
+	 * Eleanor (aionsdo) straight-line passability check between two creatures. Used by the
+	 * movement steering to decide whether a mob can move directly towards its target or must
+	 * fan-scan for an alternate step. Heights follow aionsdo: source {@code upper/2} (capped
+	 * 2.2), target {@code max(0.6, upper*0.7)} (1.5 for players).
+	 */
+	public boolean canPass(Creature object, Creature target) {
+		float limit = (float) (MathUtil.getDistance(object, target) - target.getObjectTemplate().getBoundRadius().getCollision());
+		if (limit <= 0)
+			return true;
+		float upperTarget = Math.min(target.getObjectTemplate().getBoundRadius().getUpper() / 2f, 2.2f);
+		float objectUp = object.getObjectTemplate().getBoundRadius().getUpper() / 2f;
+		if (object instanceof Player)
+			objectUp = 1.5f;
+		else if (target instanceof Player)
+			upperTarget = 1.5f;
+		return geoData.getMap(object.getWorldId()).canPass(object.getX(), object.getY(),
+			object.getZ() + objectUp, target.getX(), target.getY(),
+			target.getZ() + upperTarget, limit, object.getInstanceId());
+	}
+
+	public boolean canPass(int worldId, float x, float y, float z, float x1, float y1, float z1, float limit, int instanceId) {
+		return geoData.getMap(worldId).canPass(x, y, z, x1, y1, z1, limit, instanceId);
+	}
+	public GeoMap getMap(int worldId) {
+		return geoData.getMap(worldId);
+	}
+
 	public boolean isGeoOn() {
 		return GeoDataConfig.GEO_ENABLE;
 	}
@@ -130,6 +186,30 @@ public class GeoService {
 	public Vector3f getClosestCollision(Creature object, float x, float y, float z, boolean changeDirction) {
 		return geoData.getMap(object.getWorldId())
 			.getClosestCollision(object.getX(), object.getY(), object.getZ(), x, y, z, changeDirction, object.isInFlyingState(), object.getInstanceId());
+	}
+
+	public boolean isCollisionMesh(Creature object, float x, float y, float z, float targetX, float targetY, float targetZ) {
+		return geoData.getMap(object.getWorldId()).isCollisionMesh(x, y, z, targetX, targetY, targetZ, object.getInstanceId());
+	}
+
+	/**
+	 * Tests whether a horizontal step from the creature's position towards the target is
+	 * blocked by solid geometry at chest AND head height. The heights are derived from the
+	 * ground the creature actually stands on ({@link GeoMap#getZ}), so they always match
+	 * the navigation grid's terrain-based band (terrain + {@link GeoDataConfig#GEO_PATHFINDING_MAX_BLOCK}
+	 * and + 0.8 higher). Slopes and stairs (heightfield) are never meshes, so they never
+	 * block; walls, rocks, tree trunks and low canopies do. Keeping grid and per-step
+	 * checks on identical heights prevents both walking through walls and the mob freezing
+	 * at an obstacle that the grid routes through but the step check rejects.
+	 */
+	public boolean isSolidStep(Creature object, float targetX, float targetY) {
+		GeoMap map = geoData.getMap(object.getWorldId());
+		int iid = object.getInstanceId();
+		float surfaceZ = map.getZ(object.getX(), object.getY(), object.getZ() + 2f, iid);
+		float chest = surfaceZ + GeoDataConfig.GEO_PATHFINDING_MAX_BLOCK;
+		float head = chest + 0.8f;
+		return map.isCollisionMesh(object.getX(), object.getY(), chest, targetX, targetY, chest, iid)
+			|| map.isCollisionMesh(object.getX(), object.getY(), head, targetX, targetY, head, iid);
 	}
 
 	public GeoType getConfiguredGeoType() {

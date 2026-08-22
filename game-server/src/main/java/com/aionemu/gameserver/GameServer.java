@@ -162,6 +162,7 @@ public final class GameServer {
 			Runtime.getRuntime().addShutdownHook(ShutdownHook.getInstance());
 
 			initializeFactionRatioHook();
+			initializeBotHook();
 			onStartup();
 
 		} catch (Throwable e) {
@@ -468,6 +469,16 @@ private static void printHeader() {
 			}
 
 			displayRatios(false);
+		});
+	}
+
+	private static void initializeBotHook() {
+		addStartupHook(() -> {
+			try {
+				com.aionemu.gameserver.services.bot.BotManager.getInstance().start();
+			} catch (Exception e) {
+				log.error("Failed to start bot system.", e);
+			}
 		});
 	}
 

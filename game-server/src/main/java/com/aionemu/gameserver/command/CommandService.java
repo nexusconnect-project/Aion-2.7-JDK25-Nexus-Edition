@@ -44,6 +44,7 @@ public class CommandService {
 		commands.put("ai2", new CmdAi2Command());
 		commands.put("announce", new CmdAnnounce());
 		commands.put("announcement", new CmdAnnouncement());
+		commands.put("bot", new com.aionemu.gameserver.command.admin.CmdBot());
 		commands.put("appearance", new CmdAppearance());
 		commands.put("assault", new CmdAssault());	
 		commands.put("ban", new CmdBan());

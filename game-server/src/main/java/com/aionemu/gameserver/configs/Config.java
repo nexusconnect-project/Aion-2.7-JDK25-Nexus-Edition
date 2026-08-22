@@ -166,6 +166,9 @@ public class Config {
 			
 			ConfigurableProcessor.process(EventsConfig.class, mainProps);
 			log.info("Loading: " + main + "/events.properties");
+
+			ConfigurableProcessor.process(com.aionemu.gameserver.configs.main.BotsConfig.class, mainProps);
+			log.info("Loading: " + main + "/bots.properties");
                         
                        // ConfigurableProcessor.process(GlobalityConfig.class, mainProps);
 			//log.info("Loading: " + main + "/globality.properties");

@@ -19,9 +19,9 @@ public class MySQL5CustomRankDAO extends PlayerRankDAO {
 
 	// public static final String UPDATE_PLAYER_RANK = "UPDATE customRank SET
 	// customRank.rank = ?, customRank.pts = ? where customRank.playerObjId = ?";
-	public static final String UPDATE_PLAYER_RANK = "INSERT INTO customRank (rank, pts, playerObjId) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rank=?, pts=?";
-	public static final String SELECT_PLAYER_RANK = "SELECT customRank.rank,customRank.pts FROM customRank WHERE customRank.playerObjId = ?";
-	public static final String INSERT_PLAYER_RANK = "INSERT INTO customRank (rank, pts, playerObjId) VALUES (?,?,?)";
+	public static final String UPDATE_PLAYER_RANK = "INSERT INTO customRank (`rank`, pts, playerObjId) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `rank`=?, pts=?";
+	public static final String SELECT_PLAYER_RANK = "SELECT customRank.`rank`,customRank.pts FROM customRank WHERE customRank.playerObjId = ?";
+	public static final String INSERT_PLAYER_RANK = "INSERT INTO customRank (`rank`, pts, playerObjId) VALUES (?,?,?)";
 
 	@Override
 	public boolean supports(String databaseName, int majorVersion, int minorVersion) {

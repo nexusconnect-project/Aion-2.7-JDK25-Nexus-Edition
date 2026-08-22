@@ -546,131 +546,66 @@ public class BoundingBox extends BoundingVolume {
     public boolean intersects(Ray ray) {
         assert Vector3f.isValidVector(center);
 
-        float rhs;
+        // Allocation-free ray/AABB test. The original implementation allocated 2 Vector3f
+        // and 5 Array3f from the global javolution ObjectFactory pool on every call and
+        // recycled them again. With several threads raycasting concurrently (grid warm-up,
+        // pathfinding workers, canSee/getZ on the game thread) that single global pool
+        // became a contention point that slowed each thread down by an order of magnitude.
+        // The math below is identical (slab / separating-axis test), just with local floats.
+        float diffX = ray.origin.x - center.x;
+        float diffY = ray.origin.y - center.y;
+        float diffZ = ray.origin.z - center.z;
+        float dirX = ray.getDirection().x;
+        float dirY = ray.getDirection().y;
+        float dirZ = ray.getDirection().z;
 
-        Vector3f vect1 = Vector3f.newInstance();
-        Vector3f vect2 = Vector3f.newInstance();
-        Vector3f diff = ray.origin.subtract(getCenter(vect2), vect1);
-
-        final Array3f fWdU      = Array3f.newInstance();
-        final Array3f fAWdU     = Array3f.newInstance();
-        final Array3f fDdU      = Array3f.newInstance();
-        final Array3f fADdU     = Array3f.newInstance();
-        final Array3f fAWxDdU   = Array3f.newInstance();
-        
-        fWdU.a = ray.getDirection().dot(Vector3f.UNIT_X);
-        fAWdU.a = FastMath.abs(fWdU.a);
-        fDdU.a = diff.dot(Vector3f.UNIT_X);
-        fADdU.a = FastMath.abs(fDdU.a);
-        if (fADdU.a > xExtent && fDdU.a * fWdU.a >= 0.0) {
-        		Vector3f.recycle(vect1);
-        		Vector3f.recycle(vect2);
-        		Array3f.recycle(fWdU);
-        		Array3f.recycle(fAWdU);
-        		Array3f.recycle(fDdU);
-        		Array3f.recycle(fADdU);
-        		Array3f.recycle(fAWxDdU);
+        if (Math.abs(diffX) > xExtent && diffX * dirX >= 0.0f) {
+            return false;
+        }
+        if (Math.abs(diffY) > yExtent && diffY * dirY >= 0.0f) {
+            return false;
+        }
+        if (Math.abs(diffZ) > zExtent && diffZ * dirZ >= 0.0f) {
             return false;
         }
 
-        fWdU.b = ray.getDirection().dot(Vector3f.UNIT_Y);
-        fAWdU.b = FastMath.abs(fWdU.b);
-        fDdU.b = diff.dot(Vector3f.UNIT_Y);
-        fADdU.b = FastMath.abs(fDdU.b);
-        if (fADdU.b > yExtent && fDdU.b * fWdU.b >= 0.0) {
-        		Vector3f.recycle(vect1);
-        		Vector3f.recycle(vect2);
-        		Array3f.recycle(fWdU);
-        		Array3f.recycle(fAWdU);
-        		Array3f.recycle(fDdU);
-        		Array3f.recycle(fADdU);
-        		Array3f.recycle(fAWxDdU);
+        // wCrossD = ray.direction.cross(diff)
+        float awdX = Math.abs(dirX);
+        float awdY = Math.abs(dirY);
+        float awdZ = Math.abs(dirZ);
+
+        float crossX = dirY * diffZ - dirZ * diffY;
+        if (Math.abs(crossX) > yExtent * awdZ + zExtent * awdY) {
             return false;
         }
-
-        fWdU.c = ray.getDirection().dot(Vector3f.UNIT_Z);
-        fAWdU.c = FastMath.abs(fWdU.c);
-        fDdU.c = diff.dot(Vector3f.UNIT_Z);
-        fADdU.c = FastMath.abs(fDdU.c);
-        if (fADdU.c > zExtent && fDdU.c * fWdU.c >= 0.0) {
-      			Vector3f.recycle(vect1);
-      			Vector3f.recycle(vect2);
-        		Array3f.recycle(fWdU);
-        		Array3f.recycle(fAWdU);
-        		Array3f.recycle(fDdU);
-        		Array3f.recycle(fADdU);
-        		Array3f.recycle(fAWxDdU);
+        float crossY = dirZ * diffX - dirX * diffZ;
+        if (Math.abs(crossY) > xExtent * awdZ + zExtent * awdX) {
             return false;
         }
-
-        Vector3f wCrossD = ray.getDirection().cross(diff, vect2);
-
-        fAWxDdU.a = FastMath.abs(wCrossD.dot(Vector3f.UNIT_X));
-        rhs = yExtent * fAWdU.c + zExtent * fAWdU.b;
-        if (fAWxDdU.a > rhs) {
-      			Vector3f.recycle(vect1);
-      			Vector3f.recycle(vect2);
-        		Array3f.recycle(fWdU);
-        		Array3f.recycle(fAWdU);
-        		Array3f.recycle(fDdU);
-        		Array3f.recycle(fADdU);
-        		Array3f.recycle(fAWxDdU);
-            return false;
-        }
-
-        fAWxDdU.b = FastMath.abs(wCrossD.dot(Vector3f.UNIT_Y));
-        rhs = xExtent * fAWdU.c + zExtent * fAWdU.a;
-        if (fAWxDdU.b > rhs) {
-      			Vector3f.recycle(vect1);
-      			Vector3f.recycle(vect2);
-        		Array3f.recycle(fWdU);
-        		Array3f.recycle(fAWdU);
-        		Array3f.recycle(fDdU);
-        		Array3f.recycle(fADdU);
-        		Array3f.recycle(fAWxDdU);
-            return false;
-        }
-
-        fAWxDdU.c = FastMath.abs(wCrossD.dot(Vector3f.UNIT_Z));
-        rhs = xExtent * fAWdU.b + yExtent * fAWdU.a;
-        if (fAWxDdU.c > rhs) {
-      			Vector3f.recycle(vect1);
-      			Vector3f.recycle(vect2);
-        		Array3f.recycle(fWdU);
-        		Array3f.recycle(fAWdU);
-        		Array3f.recycle(fDdU);
-        		Array3f.recycle(fADdU);
-        		Array3f.recycle(fAWxDdU);
-            return false;
-        }
-    		Vector3f.recycle(vect1);
-    		Vector3f.recycle(vect2);
-    		Array3f.recycle(fWdU);
-    		Array3f.recycle(fAWdU);
-    		Array3f.recycle(fDdU);
-    		Array3f.recycle(fADdU);
-    		Array3f.recycle(fAWxDdU);
-        return true;
+        float crossZ = dirX * diffY - dirY * diffX;
+        return Math.abs(crossZ) <= xExtent * awdY + yExtent * awdX;
     }
 
     /**
      * @see com.aionemu.gameserver.geoEngine.bounding.jme.bounding.BoundingVolume#intersectsWhere(com.jme.math.Ray)
      */
     private int collideWithRay(Ray ray, CollisionResults results) {
-        Vector3f diff = Vector3f.newInstance().set(ray.origin).subtractLocal(center);
-        Vector3f direction = Vector3f.newInstance().set(ray.direction);
+        float diffX = ray.origin.x - center.x;
+        float diffY = ray.origin.y - center.y;
+        float diffZ = ray.origin.z - center.z;
+        float dirX = ray.direction.x;
+        float dirY = ray.direction.y;
+        float dirZ = ray.direction.z;
 
         float[] t = { 0f, Float.POSITIVE_INFINITY };
         
         float saveT0 = t[0], saveT1 = t[1];
-        boolean notEntirelyClipped = clip(+direction.x, -diff.x - xExtent, t)
-                && clip(-direction.x, +diff.x - xExtent, t)
-                && clip(+direction.y, -diff.y - yExtent, t)
-                && clip(-direction.y, +diff.y - yExtent, t)
-                && clip(+direction.z, -diff.z - zExtent, t)
-                && clip(-direction.z, +diff.z - zExtent, t);
-        Vector3f.recycle(diff);
-        Vector3f.recycle(direction);
+        boolean notEntirelyClipped = clip(+dirX, -diffX - xExtent, t)
+                && clip(-dirX, +diffX - xExtent, t)
+                && clip(+dirY, -diffY - yExtent, t)
+                && clip(-dirY, +diffY - yExtent, t)
+                && clip(+dirZ, -diffZ - zExtent, t)
+                && clip(-dirZ, +diffZ - zExtent, t);
         
         if (notEntirelyClipped && (t[0] != saveT0 || t[1] != saveT1)) {
             if (t[1] > t[0]) {

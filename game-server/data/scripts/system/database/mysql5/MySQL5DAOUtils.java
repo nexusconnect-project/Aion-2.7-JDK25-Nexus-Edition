@@ -35,6 +35,6 @@ public class MySQL5DAOUtils {
 	 * @return supports or not
 	 */
 	public static boolean supports(String db, int majorVersion, int minorVersion) {
-		return MYSQL_DB_NAME.equals(db) && majorVersion == 5;
+		return (MYSQL_DB_NAME.equals(db) || "MariaDB".equals(db)) && majorVersion >= 5;
 	}
 }

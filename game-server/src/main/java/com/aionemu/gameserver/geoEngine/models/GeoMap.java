@@ -43,11 +43,24 @@ public class GeoMap extends Node {
 	private short[] terrainData;
 	private List<BoundingBox> tmpBox = new ArrayList<BoundingBox>();
 	private Map<String, DoorGeometry> doors = new FastMap<String, DoorGeometry>();
+	private final int worldSize;
+	private final int worldId;
 
 	/**
 	 * 
 	 */
 	public GeoMap(String name, int worldSize) {
+		this.worldSize = worldSize;
+		int parsedId = 0;
+		if (name != null) {
+			try {
+				parsedId = Integer.parseInt(name.trim());
+			}
+			catch (NumberFormatException e) {
+				parsedId = 0;
+			}
+		}
+		this.worldId = parsedId;
 		for (int x = 0; x < worldSize; x += 256) {
 			for (int y = 0; y < worldSize; y += 256) {
 				Node geoNode = new Node("");
@@ -55,6 +68,27 @@ public class GeoMap extends Node {
 				super.attachChild(geoNode);
 			}
 		}
+	}
+
+	/**
+	 * @return the world/map id this geo map belongs to (0 when unknown)
+	 */
+	public int getWorldId() {
+		return worldId;
+	}
+
+	/**
+	 * @return the world size in world units
+	 */
+	public int getWorldSize() {
+		return worldSize;
+	}
+
+	/**
+	 * @return the terrain heightmap (raw short values, divide by 32 for world height)
+	 */
+	public short[] getTerrainData() {
+		return terrainData;
 	}
 
 	public void setDoorState(int instanceId, String name, boolean state) {
@@ -190,6 +224,54 @@ public class GeoMap extends Node {
 			return start;
 
 		return contactPoint;
+	}
+
+	/**
+	 * Mesh-only raycast: returns true when the segment between the two points intersects
+	 * any geometry mesh (walls, buildings, rocks). Terrain is intentionally ignored, so
+	 * slopes and stairs do not block the check.
+	 */
+	public boolean isCollisionMesh(float x, float y, float z, float targetX, float targetY, float targetZ, int instanceId) {
+		Vector3f pos = new Vector3f(x, y, z);
+		Vector3f dir = new Vector3f(targetX, targetY, targetZ);
+		Float limit = pos.distance(dir);
+		if (limit <= 0.01f) {
+			return false;
+		}
+		dir.subtractLocal(pos).normalizeLocal();
+		Ray r = new Ray(pos, dir);
+		r.setLimit(limit);
+		CollisionResults results = new CollisionResults();
+		collideWith(r, results, instanceId);
+		return results.size() > 0;
+	}
+
+	/**
+	 * Eleanor (aionsdo) movement raycast: mesh-only collision probe without the terrain
+	 * sampling loop used by {@link #canSee}. Returns true when no solid mesh blocks the
+	 * segment within {@code limit}. Distances beyond 70m are treated as blocked.
+	 * <p>
+	 * NOTE: upstream aionsdo applies a {@code CollisionIntention.PHYSICAL} filter here. Nexus
+	 * meshes carry no per-mesh collision flags yet, so the filter is omitted — this keeps the
+	 * current "all meshes block" behaviour. Add the filter once per-mesh flags are available.
+	 */
+	public boolean canPass(float x, float y, float z, float targetX, float targetY, float targetZ, float limit,
+		int instanceId) {
+		float x2 = x - targetX;
+		float y2 = y - targetY;
+		float distance = (float) Math.sqrt(x2 * x2 + y2 * y2);
+		if (distance > 70f) {
+			return false;
+		}
+		Vector3f pos = new Vector3f(x, y, z);
+		Vector3f dir = new Vector3f(targetX, targetY, targetZ);
+		dir.subtractLocal(pos).normalizeLocal();
+		Ray r = new Ray(pos, dir);
+		r.setLimit(limit);
+		CollisionResults results = new CollisionResults();
+		results.setOnlyFirst(true);
+		collideWith(r, results, instanceId);
+		return results.size() == 0;
 	}
 
 	private Vector3f calculateTerrainCollision(float x, float y, float z, float targetX, float targetY, float targetZ,

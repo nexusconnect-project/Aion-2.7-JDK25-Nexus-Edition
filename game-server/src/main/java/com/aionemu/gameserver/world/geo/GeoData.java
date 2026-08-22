@@ -16,6 +16,8 @@
  */
 package com.aionemu.gameserver.world.geo;
 
+import java.util.List;
+
 import com.aionemu.gameserver.geoEngine.models.GeoMap;
 
 /**
@@ -26,4 +28,9 @@ public interface GeoData {
 	void loadGeoMaps();
 
 	GeoMap getMap(int worldId);
+
+	/**
+	 * @return all maps that were loaded into memory (used for path grid warm-up)
+	 */
+	List<GeoMap> getLoadedMaps();
 }

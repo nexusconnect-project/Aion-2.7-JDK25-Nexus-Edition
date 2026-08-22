@@ -101,4 +101,13 @@ public class RealGeoData implements GeoData {
 		GeoMap geoMap = geoMaps.get(worldId);
 		return geoMap != null ? geoMap : DummyGeoData.DUMMY_MAP;
 	}
+
+	@Override
+	public List<GeoMap> getLoadedMaps() {
+		List<GeoMap> result = new ArrayList<GeoMap>(geoMaps.size());
+		for (Object value : geoMaps.values()) {
+			result.add((GeoMap) value);
+		}
+		return result;
+	}
 }

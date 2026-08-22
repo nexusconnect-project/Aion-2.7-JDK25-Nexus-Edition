@@ -79,4 +79,54 @@ public class GeoDataConfig {
 	 */
 	@Property(key = "gameserver.geodata.objectfactory.enabled", defaultValue = "true")
 	public static boolean GEO_OBJECT_FACTORY_ENABLE;
+
+	/**
+	 * Enable pathfinding (JPS on pre-baked navigation grids + LRU path cache)
+	 */
+	@Property(key = "gameserver.geo.pathfinding.enable", defaultValue = "true")
+	public static boolean GEO_PATHFINDING_ENABLE;
+
+	/**
+	 * Navigation grid resolution in world units per cell
+	 */
+	@Property(key = "gameserver.geo.pathfinding.resolution", defaultValue = "4")
+	public static int GEO_PATHFINDING_RESOLUTION;
+
+	/**
+	 * Maximum number of JPS node expansions per search (latency guard)
+	 */
+	@Property(key = "gameserver.geo.pathfinding.max.nodes", defaultValue = "2048")
+	public static int GEO_PATHFINDING_MAX_NODES;
+
+	/**
+	 * Number of worker threads computing paths
+	 */
+	@Property(key = "gameserver.geo.pathfinding.threads", defaultValue = "2")
+	public static int GEO_PATHFINDING_THREADS;
+
+	/**
+	 * LRU path cache size (entries per world)
+	 */
+	@Property(key = "gameserver.geo.pathfinding.cache.size", defaultValue = "1024")
+	public static int GEO_PATHFINDING_CACHE_SIZE;
+
+	/**
+	 * Maximum height difference in meters between two cells to be traversable on foot
+	 */
+	@Property(key = "gameserver.geo.pathfinding.max.climb", defaultValue = "1.5")
+	public static float GEO_PATHFINDING_MAX_CLIMB;
+
+	/**
+	 * Height above the local terrain at which obstacles are detected (chest height check).
+	 * Any wall/rock/building intersecting this band blocks the cell and the move step,
+	 * while lower objects (steps, curbs, stairs) stay walkable
+	 */
+	@Property(key = "gameserver.geo.pathfinding.max.block", defaultValue = "0.8")
+	public static float GEO_PATHFINDING_MAX_BLOCK;
+
+	/**
+	 * Terrain heights below this value are treated as void/blocked
+	 */
+	@Property(key = "gameserver.geo.pathfinding.min.height", defaultValue = "-5")
+	public static float GEO_PATHFINDING_MIN_HEIGHT;
 }

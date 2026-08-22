@@ -14,33 +14,31 @@
  *  You should have received a copy of the GNU General Public License
  *  along with aion-lightning.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.aionemu.gameserver.world.geo;
-
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.commons.lang.StringUtils;
-
-import com.aionemu.gameserver.geoEngine.models.GeoMap;
+package com.aionemu.gameserver.geoEngine.pathfinding;
 
 /**
- * @author ATracer
+ * Immutable result of a pathfinding request: an ordered list of world-space waypoints
+ * (flat float arrays, no per-waypoint allocations).
+ *
+ * @author aion-lightning
  */
-public class DummyGeoData implements GeoData {
+public final class PathResult {
 
-	public static final DummyGeoMap DUMMY_MAP = new DummyGeoMap(StringUtils.EMPTY, 0);
+	public final float[] xs;
+	public final float[] ys;
+	public final float[] zs;
+	public final int count;
+	public final long createdAt = System.currentTimeMillis();
 
-	@Override
-	public void loadGeoMaps() {
+	public PathResult(float[] xs, float[] ys, float[] zs) {
+		this.xs = xs;
+		this.ys = ys;
+		this.zs = zs;
+		this.count = xs.length;
 	}
 
 	@Override
-	public GeoMap getMap(int worldId) {
-		return DUMMY_MAP;
-	}
-
-	@Override
-	public List<GeoMap> getLoadedMaps() {
-		return Collections.emptyList();
+	public String toString() {
+		return "PathResult[" + count + " waypoints]";
 	}
 }

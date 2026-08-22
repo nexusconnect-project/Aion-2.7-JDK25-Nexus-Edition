@@ -919,7 +919,8 @@ INSERT INTO `command` (`name`, `security`, `help`) VALUES
 ('warp', 2, 'Syntax : //warp <@link>'),
 ('wc', 3, 'Syntax : //wc <ely | asm | all | default> <message>'),
 ('weather', 5, 'Syntax : //weather <regionName> <value(0->12)>\\n\r\nSyntax : //weather reset'),
-('zone', 12, 'Syntax : //zone refresh | inside');
+('zone', 12, 'Syntax : //zone refresh | inside'),
+('bot', 1, 'Syntax : //bot <spawn [count] | clear | list>');
 
 
 DROP TABLE IF EXISTS `command_alias`;
